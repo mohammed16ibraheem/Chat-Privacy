@@ -13,18 +13,20 @@ use tokio::sync::RwLock;
 pub struct UserData {
     #[allow(dead_code)] // Used for future features and ensuring uniqueness
     pub user_id: String,      // UUID for unique identification
+    #[allow(dead_code)] // Stored for routing and future features
     pub username: String,     // Username (must be unique)
     pub public_key: String,   // Base64 encoded public key
     #[allow(dead_code)] // Kept for future features (connection time tracking, etc.)
     pub last_seen: Instant,
 }
 
-/// WebSocket connection information
-#[derive(Debug, Clone)]
-#[allow(dead_code)] // Fields may be used for future features or debugging
-pub struct ConnectionInfo {
-    pub username: String,
-    pub connected_at: Instant,
+/// Pending signaling message
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PendingSignalingMessage {
+    pub from: String,
+    pub to: String,
+    pub message_type: String, // "offer", "answer", "ice-candidate"
+    pub data: String, // SDP or ICE candidate JSON
 }
 
 /// Application state - all data stored in memory (ephemeral)
@@ -32,20 +34,31 @@ pub struct ConnectionInfo {
 pub struct AppState {
     /// Online users: username -> UserData
     pub users: Arc<RwLock<HashMap<String, UserData>>>,
-    /// Active WebSocket connections: username -> ConnectionInfo
-    pub connections: Arc<RwLock<HashMap<String, ConnectionInfo>>>,
-    /// Connection manager for WebSocket message delivery
-    pub connection_manager: Arc<crate::connection_manager::ConnectionManager>,
+    /// WebRTC signaling: username -> pending offer/answer/ICE candidates
+    pub signaling: Arc<RwLock<HashMap<String, SignalingData>>>,
+    /// Pending signaling messages: username -> Vec<PendingSignalingMessage>
+    pub pending_messages: Arc<RwLock<HashMap<String, Vec<PendingSignalingMessage>>>>,
 }
 
 impl AppState {
     pub fn new() -> Self {
         Self {
             users: Arc::new(RwLock::new(HashMap::new())),
-            connections: Arc::new(RwLock::new(HashMap::new())),
-            connection_manager: Arc::new(crate::connection_manager::ConnectionManager::new()),
+            signaling: Arc::new(RwLock::new(HashMap::new())),
+            pending_messages: Arc::new(RwLock::new(HashMap::new())),
         }
     }
+}
+
+/// WebRTC signaling data for a user
+#[derive(Debug, Clone)]
+pub struct SignalingData {
+    #[allow(dead_code)] // Stored for routing and future features
+    pub username: String,
+    #[allow(dead_code)] // Stored for future features
+    pub public_key: String,
+    #[allow(dead_code)] // Kept for future features (connection time tracking, etc.)
+    pub last_seen: Instant,
 }
 
 /// Request to get a user's public key
@@ -66,58 +79,60 @@ pub struct ErrorResponse {
     pub error: String,
 }
 
-/// WebSocket message types
+/// WebRTC signaling request/response types
 #[derive(Debug, Serialize, Deserialize)]
-#[serde(tag = "type")]
-pub enum WebSocketMessage {
-    /// Client sends this to check if username is available
-    #[serde(rename = "check_username")]
-    CheckUsername {
-        username: String,
-    },
-    /// Server responds to username check
-    #[serde(rename = "username_available")]
-    UsernameAvailable {
-        available: bool,
-        message: String,
-    },
-    /// Client sends this to register/login
-    #[serde(rename = "register")]
-    Register {
-        username: String,
-        public_key: String,
-    },
-    /// Server responds to registration
-    #[serde(rename = "registered")]
-    Registered {
-        user_id: String,
-        username: String,
-    },
-    /// Send encrypted message to another user
-    #[serde(rename = "send_message")]
-    SendMessage {
-        to: String,
-        encrypted: EncryptedMessage,
-    },
-    /// Server sends this when a message is received
-    #[serde(rename = "message")]
-    Message {
-        id: String,
-        from: String,
-        to: String,
-        encrypted: EncryptedMessage,
-        timestamp: u64,
-    },
-    /// Server sends list of online users
-    #[serde(rename = "online_users")]
-    OnlineUsers {
-        users: Vec<String>,
-    },
-    /// Error message
-    #[serde(rename = "error")]
-    Error {
-        message: String,
-    },
+pub struct RegisterRequest {
+    pub username: String,
+    pub public_key: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct RegisterResponse {
+    pub user_id: String,
+    pub username: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct CheckUsernameRequest {
+    pub username: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct CheckUsernameResponse {
+    pub available: bool,
+    pub message: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct OfferRequest {
+    pub from: String,
+    pub to: String,
+    pub offer: String, // SDP offer
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct AnswerRequest {
+    pub from: String,
+    pub to: String,
+    pub answer: String, // SDP answer
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct IceCandidateRequest {
+    pub from: String,
+    pub to: String,
+    pub candidate: String, // ICE candidate
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct SignalingResponse {
+    pub success: bool,
+    pub message: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct OnlineUsersResponse {
+    pub users: Vec<String>,
 }
 
 /// Encrypted message payload (server never decrypts this)

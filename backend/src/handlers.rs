@@ -9,8 +9,8 @@ pub async fn get_public_key(
 ) -> Result<Json<PublicKeyResponse>, (StatusCode, Json<ErrorResponse>)> {
     let users = state.users.read().await;
     
-    // Find user by username (not by user_id)
-    let user_data = users.values().find(|u| u.username == request.username);
+    // Find user by username
+    let user_data = users.get(&request.username);
     
     match user_data {
         Some(user) => Ok(Json(PublicKeyResponse {

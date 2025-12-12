@@ -1,9 +1,8 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { generateKeyPair, keyToString } from '@/lib/encryption';
-import { saveUserData, getUserData } from '@/lib/storage';
-import { ChatWebSocket } from '@/lib/websocket';
+import { saveUserData } from '@/lib/storage';
 import Toast from './Toast';
 
 interface UsernameSetupProps {
@@ -19,63 +18,26 @@ export default function UsernameSetup({ onComplete }: UsernameSetupProps) {
   const [usernameError, setUsernameError] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
   const [showToast, setShowToast] = useState(false);
-  const [socket, setSocket] = useState<ChatWebSocket | null>(null);
-
-  useEffect(() => {
-    // Connect to WebSocket for username checking
-    const wsUrl = process.env.NEXT_PUBLIC_WS_URL || 'ws://localhost:3001/api/ws';
-    
-    const newSocket = new ChatWebSocket(wsUrl);
-    
-    newSocket.onConnect(() => {
-      setSocket(newSocket);
-    });
-
-    // Store socket reference
-    setSocket(newSocket);
-
-    return () => {
-      if (newSocket) {
-        newSocket.disconnect();
-      }
-    };
-  }, []);
 
   const checkUsername = async (): Promise<boolean> => {
-    if (!socket) {
-      return true; // If no socket, assume available (new website)
-    }
-
-    // Connect if not already connected
-    if (!socket.isConnected()) {
-      try {
-        await socket.connect('temp_check', 'temp_key');
-      } catch (error) {
-        console.error('Failed to connect for username check:', error);
-        return true; // If can't connect, assume available (new website)
-      }
-    }
-
-    return new Promise((resolve) => {
-      const timeout = setTimeout(() => {
-        // Timeout - assume available (new website, socket might be slow)
-        resolve(true);
-      }, 3000); // Reduced timeout to 3 seconds
-
-      const handler = (data: { type: string; available: boolean }) => {
-        if (data.type === 'username_available') {
-          clearTimeout(timeout);
-          socket.off('username_available', handler);
-          resolve(data.available);
-        }
-      };
-
-      socket.on('username_available', handler);
-      socket.send({ 
-        type: 'check_username', 
-        username: username.trim() 
+    try {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+      const response = await fetch(`${apiUrl}/api/check-username`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: username.trim() }),
       });
-    });
+
+      if (!response.ok) {
+        return true; // If error, assume available (for new websites)
+      }
+
+      const data = await response.json();
+      return data.available;
+    } catch (error) {
+      console.error('Failed to check username:', error);
+      return true; // If error, assume available (for new websites)
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -126,45 +88,14 @@ export default function UsernameSetup({ onComplete }: UsernameSetupProps) {
     setIsLoading(true);
 
     try {
-      // Check if username is available (only if socket is connected)
-      // If socket is not connected, skip check (for new websites, this is fine)
-      let usernameAvailable = true;
-      
-      if (socket && socket.isConnected()) {
-        try {
-          usernameAvailable = await checkUsername();
-          if (!usernameAvailable) {
-            setUsernameError(true);
-            setToastMessage('Username already exists. Please choose a different username.');
-            setShowToast(true);
-            setIsLoading(false);
-            return;
-          }
-        } catch (checkError) {
-          // If username check fails, continue anyway (socket might not be ready)
-          // For a new website, usernames should be available
-          console.log('Username check skipped:', checkError);
-        }
-      } else {
-        // Socket not connected - try to connect for username check
-        if (socket) {
-          try {
-            await socket.connect('temp_check', 'temp_key');
-            if (socket.isConnected()) {
-              usernameAvailable = await checkUsername();
-              if (!usernameAvailable) {
-                setUsernameError(true);
-                setToastMessage('Username already exists. Please choose a different username.');
-                setShowToast(true);
-                setIsLoading(false);
-                return;
-              }
-            }
-          } catch (connectError) {
-            // If we can't connect, continue anyway (new website, usernames should be available)
-            console.log('Could not connect for username check, continuing:', connectError);
-          }
-        }
+      // Check if username is available via HTTP API
+      const usernameAvailable = await checkUsername();
+      if (!usernameAvailable) {
+        setUsernameError(true);
+        setToastMessage('Username already exists. Please choose a different username.');
+        setShowToast(true);
+        setIsLoading(false);
+        return;
       }
 
       // If username is available and passwords match, proceed

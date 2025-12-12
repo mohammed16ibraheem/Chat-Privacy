@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { getUserData, saveCurrentChat, getCurrentChat, saveMessageToHistory, getChatHistory, StoredMessage } from '@/lib/storage';
 import { encryptMessage, decryptMessage, stringToKey } from '@/lib/encryption';
-import { ChatWebSocket } from '@/lib/websocket';
+import { WebRTCManager } from '@/lib/webrtc';
 
 interface Message {
   id: string;
@@ -23,143 +23,252 @@ interface ChatInterfaceProps {
 }
 
 export default function ChatInterface({ onLogout }: ChatInterfaceProps) {
-  const [socket, setSocket] = useState<ChatWebSocket | null>(null);
+  const [webrtc, setWebrtc] = useState<WebRTCManager | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputMessage, setInputMessage] = useState('');
   const [recipientUsername, setRecipientUsername] = useState('');
   const [currentChat, setCurrentChat] = useState<string | null>(null);
   const [onlineUsers, setOnlineUsers] = useState<string[]>([]);
   const [isConnected, setIsConnected] = useState(false);
+  const [connectionState, setConnectionState] = useState<string>('disconnected');
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const registrationInProgress = useRef(false);
   const userData = getUserData();
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
 
+  // Register user and initialize (only once per username)
   useEffect(() => {
     if (!userData) return;
+    
+    // Prevent multiple simultaneous registrations
+    if (registrationInProgress.current) {
+      console.log('Registration already in progress, skipping...');
+      return;
+    }
 
-    // Restore previous chat
-    const savedChat = getCurrentChat();
-    if (savedChat) {
-      setCurrentChat(savedChat);
-      setRecipientUsername(savedChat);
-      
-      // Load chat history for this conversation
-      const history = getChatHistory(savedChat);
-      if (history.length > 0 && userData) {
-        // Decrypt stored messages
-        const decryptedMessages = history.map(async (msg) => {
+    let isMounted = true;
+    registrationInProgress.current = true;
+
+    const initialize = async () => {
+      try {
+        // Register user with backend (only once)
+        try {
+          const registerResponse = await fetch(`${apiUrl}/api/register`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              username: userData.username,
+              public_key: userData.publicKey,
+            }),
+          });
+
+          if (!registerResponse.ok) {
+            const error = await registerResponse.json();
+            if (error.message?.includes('already exists') || registerResponse.status === 409) {
+              // User already registered, this is fine - continue
+              console.log('User already registered, continuing...');
+            } else {
+              console.error('Registration failed:', error);
+              registrationInProgress.current = false;
+              return; // Don't initialize if registration fails
+            }
+          } else {
+            console.log('User registered successfully');
+          }
+        } catch (regError) {
+          // Network error or other issue - try to continue anyway
+          console.warn('Registration request failed, continuing:', regError);
+        }
+
+        if (!isMounted) {
+          registrationInProgress.current = false;
+          return;
+        }
+
+        // Initialize WebRTC manager
+        const manager = new WebRTCManager(apiUrl, userData.username, userData.publicKey);
+        await manager.initialize();
+
+        if (!isMounted) {
+          manager.close();
+          registrationInProgress.current = false;
+          return;
+        }
+
+        // Set up message handler
+        manager.onMessage(async (data: any) => {
           try {
-            const senderPublicKey = stringToKey(msg.encrypted.publicKey);
-            const recipientPrivateKey = stringToKey(userData.privateKey);
-            
-            const decrypted = await decryptMessage(
-              msg.encrypted,
-              senderPublicKey,
-              recipientPrivateKey
-            );
-            
-            return {
-              ...msg,
-              decrypted,
-            };
+            if (data.type === 'encrypted_message' && data.encrypted) {
+              const message: Message = {
+                id: data.id || Date.now().toString(),
+                from: data.from,
+                to: data.to,
+                encrypted: data.encrypted,
+                timestamp: data.timestamp || Date.now(),
+              };
+
+              // Decrypt the message
+              const senderPublicKey = stringToKey(message.encrypted.publicKey);
+              const recipientPrivateKey = stringToKey(userData.privateKey);
+
+              const decrypted = await decryptMessage(
+                message.encrypted,
+                senderPublicKey,
+                recipientPrivateKey
+              );
+
+              const decryptedMessage = { ...message, decrypted };
+
+              // Save to chat history
+              saveMessageToHistory(decryptedMessage as StoredMessage);
+
+              setMessages((prev) => [...prev, decryptedMessage]);
+            }
           } catch (error) {
-            console.error('Failed to decrypt stored message:', error);
-            return { ...msg, decrypted: '[Failed to decrypt]' };
+            console.error('Failed to decrypt message:', error);
           }
         });
-        
-        Promise.all(decryptedMessages).then((msgs) => {
-          setMessages(msgs as Message[]);
+
+        // Set up connection state handler
+        manager.onConnectionStateChangeCallback((state) => {
+          if (isMounted) {
+            setConnectionState(state);
+            setIsConnected(state === 'connected');
+          }
         });
-      }
-    }
 
-    // Connect to WebSocket server
-    const wsUrl = process.env.NEXT_PUBLIC_WS_URL || 'ws://localhost:3001/api/ws';
-    
-    const newSocket = new ChatWebSocket(wsUrl);
-
-    newSocket.onConnect(() => {
-      setIsConnected(true);
-    });
-
-    newSocket.onDisconnect(() => {
-      setIsConnected(false);
-    });
-
-    newSocket.on('registered', (data: { user_id: string; username: string }) => {
-      // Registration successful
-      console.log('Registered:', data);
-    });
-
-    newSocket.on('online_users', (data: { users: string[] }) => {
-      setOnlineUsers(data.users.filter((u: string) => u !== userData.username));
-    });
-
-    newSocket.on('message', async (data: { id: string; from: string; to: string; encrypted: any; timestamp: number }) => {
-      try {
-        const message: Message = {
-          id: data.id,
-          from: data.from,
-          to: data.to,
-          encrypted: data.encrypted,
-          timestamp: data.timestamp,
-        };
-
-        // Decrypt the message
-        if (!userData) return;
+        if (!isMounted) {
+          manager.close();
+          registrationInProgress.current = false;
+          return;
+        }
         
-        const senderPublicKey = stringToKey(message.encrypted.publicKey);
-        const recipientPrivateKey = stringToKey(userData.privateKey);
-        
-        const decrypted = await decryptMessage(
-          message.encrypted,
-          senderPublicKey,
-          recipientPrivateKey
-        );
-
-        const decryptedMessage = { ...message, decrypted };
-        
-        // Save to chat history (encrypted storage)
-        saveMessageToHistory(decryptedMessage as StoredMessage);
-
-        setMessages((prev) => [
-          ...prev,
-          decryptedMessage,
-        ]);
-      } catch (error) {
-        console.error('Failed to decrypt message:', error);
-      }
-    });
-
-    newSocket.on('error', (data: { message: string }) => {
-      console.error('WebSocket error:', data.message);
-      if (data.message.includes('already exists')) {
-        alert('Username already exists. Please refresh and choose a different username.');
-      }
-    });
-
-    // Connect and register
-    if (userData) {
-      newSocket.connect(userData.username, userData.publicKey).catch((error) => {
-        console.error('Failed to connect:', error);
+        setWebrtc(manager);
         setIsConnected(false);
-      });
-    }
+        registrationInProgress.current = false;
 
-    setSocket(newSocket);
+        // Restore previous chat
+        const savedChat = getCurrentChat();
+        if (savedChat) {
+          setCurrentChat(savedChat);
+          setRecipientUsername(savedChat);
+
+          // Load chat history (async operation)
+          const loadHistory = async () => {
+            const history = getChatHistory(savedChat);
+            if (history.length > 0) {
+              const decryptedMessages = await Promise.all(
+                history.map(async (msg) => {
+                  try {
+                    if (msg.decrypted) {
+                      return msg as Message;
+                    }
+
+                    const senderPublicKey = stringToKey(msg.encrypted.publicKey);
+                    const recipientPrivateKey = stringToKey(userData.privateKey);
+
+                    const decrypted = await decryptMessage(
+                      msg.encrypted,
+                      senderPublicKey,
+                      recipientPrivateKey
+                    );
+
+                    return { ...msg, decrypted } as Message;
+                  } catch (error) {
+                    console.error('Failed to decrypt stored message:', error);
+                    return { ...msg, decrypted: '[Failed to decrypt]' } as Message;
+                  }
+                })
+              );
+
+              if (isMounted) {
+                setMessages(decryptedMessages);
+              }
+            }
+          };
+
+          loadHistory();
+        }
+      } catch (error) {
+        console.error('Failed to initialize:', error);
+        registrationInProgress.current = false;
+      }
+    };
+
+    initialize();
 
     return () => {
-      newSocket.disconnect();
+      isMounted = false;
+      registrationInProgress.current = false;
+      if (webrtc) {
+        webrtc.close();
+      }
     };
-  }, [userData]);
+  }, [userData?.username]); // Only re-run if username changes
+
+  // Poll for online users and pending signaling messages
+  useEffect(() => {
+    if (!userData || !webrtc) return;
+
+    const fetchOnlineUsers = async () => {
+      try {
+        const response = await fetch(`${apiUrl}/api/online-users`);
+        if (response.ok) {
+          const data = await response.json();
+          setOnlineUsers(data.users.filter((u: string) => u !== userData.username));
+        }
+      } catch (error) {
+        console.error('Failed to fetch online users:', error);
+      }
+    };
+
+    const pollSignalingMessages = async () => {
+      try {
+        const response = await fetch(`${apiUrl}/api/webrtc/pending-messages/${userData.username}`);
+        if (response.ok) {
+          const messages = await response.json();
+          
+          for (const msg of messages) {
+            try {
+              if (msg.message_type === 'offer') {
+                const offer = JSON.parse(msg.data);
+                await webrtc.handleOffer(offer, msg.from);
+              } else if (msg.message_type === 'answer') {
+                const answer = JSON.parse(msg.data);
+                await webrtc.handleAnswer(answer);
+              } else if (msg.message_type === 'ice-candidate') {
+                const candidate = JSON.parse(msg.data);
+                await webrtc.handleIceCandidate(candidate);
+              }
+            } catch (error) {
+              console.error('Failed to handle signaling message:', error);
+            }
+          }
+        }
+      } catch (error) {
+        // Ignore errors (user might not be registered yet)
+      }
+    };
+
+    fetchOnlineUsers();
+    pollSignalingMessages();
+    
+    const userInterval = setInterval(fetchOnlineUsers, 3000); // Poll every 3 seconds
+    const signalingInterval = setInterval(pollSignalingMessages, 1000); // Poll signaling every 1 second
+
+    return () => {
+      clearInterval(userInterval);
+      clearInterval(signalingInterval);
+    };
+  }, [userData, apiUrl, webrtc]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
   const handleStartChat = async () => {
-    if (!userData) return;
-    
+    if (!userData || !webrtc) return;
+
     if (!recipientUsername.trim() || recipientUsername === userData.username) {
       return;
     }
@@ -170,42 +279,89 @@ export default function ChatInterface({ onLogout }: ChatInterfaceProps) {
       return;
     }
 
+    // Close existing connection if any
+    if (webrtc.isConnected()) {
+      webrtc.close();
+      const newManager = new WebRTCManager(apiUrl, userData.username, userData.publicKey);
+      await newManager.initialize();
+      
+      // Set up handlers
+      newManager.onMessage(async (data: any) => {
+        try {
+          if (data.type === 'encrypted_message' && data.encrypted) {
+            const message: Message = {
+              id: data.id || Date.now().toString(),
+              from: data.from,
+              to: data.to,
+              encrypted: data.encrypted,
+              timestamp: data.timestamp || Date.now(),
+            };
+
+            const senderPublicKey = stringToKey(message.encrypted.publicKey);
+            const recipientPrivateKey = stringToKey(userData.privateKey);
+
+            const decrypted = await decryptMessage(
+              message.encrypted,
+              senderPublicKey,
+              recipientPrivateKey
+            );
+
+            const decryptedMessage = { ...message, decrypted };
+            saveMessageToHistory(decryptedMessage as StoredMessage);
+            setMessages((prev) => [...prev, decryptedMessage]);
+          }
+        } catch (error) {
+          console.error('Failed to decrypt message:', error);
+        }
+      });
+
+      newManager.onConnectionStateChangeCallback((state) => {
+        setConnectionState(state);
+        setIsConnected(state === 'connected');
+      });
+
+      setWebrtc(newManager);
+    }
+
     // Start chat with this user
     setCurrentChat(recipientUsername);
     saveCurrentChat(recipientUsername);
-    
-    // Load chat history for this conversation
+
+    try {
+      // Connect via WebRTC
+      await webrtc.connectToUser(recipientUsername);
+    } catch (error) {
+      console.error('Failed to connect:', error);
+      alert('Failed to establish connection. Please try again.');
+    }
+
+    // Load chat history
     const history = getChatHistory(recipientUsername);
     if (history.length > 0) {
-      // Decrypt stored messages
       const decryptedMessages = await Promise.all(
         history.map(async (msg) => {
           try {
-            // Only decrypt if not already decrypted
             if (msg.decrypted) {
               return msg as Message;
             }
-            
+
             const senderPublicKey = stringToKey(msg.encrypted.publicKey);
             const recipientPrivateKey = stringToKey(userData.privateKey);
-            
+
             const decrypted = await decryptMessage(
               msg.encrypted,
               senderPublicKey,
               recipientPrivateKey
             );
-            
-            return {
-              ...msg,
-              decrypted,
-            } as Message;
+
+            return { ...msg, decrypted } as Message;
           } catch (error) {
             console.error('Failed to decrypt stored message:', error);
             return { ...msg, decrypted: '[Failed to decrypt]' } as Message;
           }
         })
       );
-      
+
       setMessages(decryptedMessages);
     } else {
       setMessages([]);
@@ -213,11 +369,15 @@ export default function ChatInterface({ onLogout }: ChatInterfaceProps) {
   };
 
   const handleSendMessage = async () => {
-    if (!inputMessage.trim() || !currentChat || !socket || !userData) return;
+    if (!inputMessage.trim() || !currentChat || !webrtc || !userData || !webrtc.isConnected()) {
+      if (!webrtc?.isConnected()) {
+        alert('Not connected. Please wait for connection to establish.');
+      }
+      return;
+    }
 
     try {
-      // Get recipient's public key from server
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+      // Get recipient's public key
       const response = await fetch(`${apiUrl}/api/user/public-key`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -228,12 +388,12 @@ export default function ChatInterface({ onLogout }: ChatInterfaceProps) {
         throw new Error('Recipient not found');
       }
 
-      const { publicKey: recipientPublicKeyStr } = await response.json();
+      const { public_key: recipientPublicKeyStr } = await response.json();
       const recipientPublicKey = stringToKey(recipientPublicKeyStr);
       const senderPrivateKey = stringToKey(userData.privateKey);
-
-      // Encrypt message (need sender's public key too)
       const senderPublicKey = stringToKey(userData.publicKey);
+
+      // Encrypt message
       const encrypted = await encryptMessage(
         inputMessage,
         recipientPublicKey,
@@ -241,14 +401,17 @@ export default function ChatInterface({ onLogout }: ChatInterfaceProps) {
         senderPublicKey
       );
 
-      // Send encrypted message
-      socket.send({
-        type: 'send_message',
+      // Send via WebRTC Data Channel
+      webrtc.send({
+        type: 'encrypted_message',
+        id: Date.now().toString(),
+        from: userData.username,
         to: currentChat,
         encrypted,
+        timestamp: Date.now(),
       });
 
-      // Add to local messages (optimistic update)
+      // Add to local messages
       const tempMessage: Message = {
         id: Date.now().toString(),
         from: userData.username,
@@ -258,14 +421,12 @@ export default function ChatInterface({ onLogout }: ChatInterfaceProps) {
         decrypted: inputMessage,
       };
 
-      // Save to chat history (encrypted storage)
       saveMessageToHistory(tempMessage as StoredMessage);
-
       setMessages((prev) => [...prev, tempMessage]);
       setInputMessage('');
     } catch (error) {
       console.error('Failed to send message:', error);
-      alert('Failed to send message. Make sure the recipient is online.');
+      alert('Failed to send message. Make sure the recipient is online and connected.');
     }
   };
 
@@ -288,9 +449,15 @@ export default function ChatInterface({ onLogout }: ChatInterfaceProps) {
             </button>
           </div>
           <div className="flex items-center gap-2">
-            <div className={`w-2 h-2 rounded-full ${isConnected ? 'bg-green-500' : 'bg-gray-400'}`} />
+            <div className={`w-2 h-2 rounded-full ${
+              connectionState === 'connected' ? 'bg-green-500' : 
+              connectionState === 'connecting' ? 'bg-yellow-500' : 
+              'bg-gray-400'
+            }`} />
             <span className="text-xs text-gray-600">
-              {isConnected ? 'Connected' : 'Disconnected'}
+              {connectionState === 'connected' ? 'Connected (P2P)' : 
+               connectionState === 'connecting' ? 'Connecting...' : 
+               'Disconnected'}
             </span>
           </div>
         </div>
@@ -328,10 +495,10 @@ export default function ChatInterface({ onLogout }: ChatInterfaceProps) {
             disabled={!recipientUsername.trim() || recipientUsername === userData?.username || !onlineUsers.includes(recipientUsername)}
             className="w-full py-2 px-4 bg-gray-900 text-white text-sm rounded-lg hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-900 focus:ring-offset-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {recipientUsername && onlineUsers.includes(recipientUsername) 
-              ? 'Start Chat' 
-              : recipientUsername 
-                ? 'User Offline' 
+            {recipientUsername && onlineUsers.includes(recipientUsername)
+              ? 'Start Chat (P2P)'
+              : recipientUsername
+                ? 'User Offline'
                 : 'Start Chat'}
           </button>
         </div>
@@ -347,42 +514,50 @@ export default function ChatInterface({ onLogout }: ChatInterfaceProps) {
                   key={username}
                   onClick={async () => {
                     if (!userData) return;
-                    
+
                     setRecipientUsername(username);
                     setCurrentChat(username);
                     saveCurrentChat(username);
-                    
-                    // Load chat history for this conversation
+
+                    // Close existing connection
+                    if (webrtc?.isConnected()) {
+                      webrtc.close();
+                      await webrtc.initialize();
+                    }
+
+                    try {
+                      await webrtc?.connectToUser(username);
+                    } catch (error) {
+                      console.error('Failed to connect:', error);
+                    }
+
+                    // Load chat history
                     const history = getChatHistory(username);
                     if (history.length > 0) {
-                      // Decrypt stored messages
                       const decryptedMessages = await Promise.all(
                         history.map(async (msg) => {
                           try {
                             if (msg.decrypted) {
                               return msg as Message;
                             }
-                            
+
                             const senderPublicKey = stringToKey(msg.encrypted.publicKey);
                             const recipientPrivateKey = stringToKey(userData.privateKey);
-                            
+
                             const decrypted = await decryptMessage(
                               msg.encrypted,
                               senderPublicKey,
                               recipientPrivateKey
                             );
-                            
-                            return {
-                              ...msg,
-                              decrypted,
-                            } as Message;
+
+                            return { ...msg, decrypted } as Message;
                           } catch (error) {
                             console.error('Failed to decrypt stored message:', error);
                             return { ...msg, decrypted: '[Failed to decrypt]' } as Message;
                           }
                         })
                       );
-                      
+
                       setMessages(decryptedMessages);
                     } else {
                       setMessages([]);
@@ -409,13 +584,19 @@ export default function ChatInterface({ onLogout }: ChatInterfaceProps) {
                 <div>
                   <h3 className="text-lg font-semibold text-gray-900">Chat with {currentChat}</h3>
                   <div className="flex items-center gap-2 mt-1">
-                    <div className={`w-2 h-2 rounded-full ${onlineUsers.includes(currentChat) ? 'bg-green-500' : 'bg-gray-400'}`} />
+                    <div className={`w-2 h-2 rounded-full ${
+                      connectionState === 'connected' ? 'bg-green-500' : 
+                      connectionState === 'connecting' ? 'bg-yellow-500' : 
+                      'bg-gray-400'
+                    }`} />
                     <p className="text-xs text-gray-500">
-                      {onlineUsers.includes(currentChat) ? 'Online - Connected' : 'Offline'}
+                      {connectionState === 'connected' ? 'P2P Connected' : 
+                       connectionState === 'connecting' ? 'Connecting...' : 
+                       'Not connected'}
                     </p>
                   </div>
                 </div>
-                <p className="text-xs text-gray-500">End-to-end encrypted</p>
+                <p className="text-xs text-gray-500">End-to-end encrypted (P2P)</p>
               </div>
             </div>
 
@@ -424,7 +605,7 @@ export default function ChatInterface({ onLogout }: ChatInterfaceProps) {
                 <div className="flex items-center justify-center h-full">
                   <div className="text-center">
                     <p className="text-sm text-gray-400 mb-2">Connected to {currentChat}</p>
-                    <p className="text-xs text-gray-500">Start the conversation! Messages are end-to-end encrypted.</p>
+                    <p className="text-xs text-gray-500">Start the conversation! Messages are peer-to-peer encrypted.</p>
                   </div>
                 </div>
               ) : (
@@ -460,10 +641,11 @@ export default function ChatInterface({ onLogout }: ChatInterfaceProps) {
                   onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
                   placeholder="Type a message..."
                   className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent"
+                  disabled={!webrtc?.isConnected()}
                 />
                 <button
                   onClick={handleSendMessage}
-                  disabled={!inputMessage.trim()}
+                  disabled={!inputMessage.trim() || !webrtc?.isConnected()}
                   className="px-6 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-900 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                 >
                   Send
@@ -475,7 +657,7 @@ export default function ChatInterface({ onLogout }: ChatInterfaceProps) {
           <div className="flex items-center justify-center h-full">
             <div className="text-center">
               <p className="text-gray-400 mb-2">Select a user to start chatting</p>
-              <p className="text-xs text-gray-500">All messages are end-to-end encrypted</p>
+              <p className="text-xs text-gray-500">All messages are peer-to-peer encrypted</p>
             </div>
           </div>
         )}
@@ -483,4 +665,3 @@ export default function ChatInterface({ onLogout }: ChatInterfaceProps) {
     </div>
   );
 }
-
