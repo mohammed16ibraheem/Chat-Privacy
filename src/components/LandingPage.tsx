@@ -1,6 +1,26 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import { 
+  Lock, 
+  Upload, 
+  FileText, 
+  X, 
+  CheckCircle, 
+  Star, 
+  Check, 
+  AlertTriangle, 
+  Rocket, 
+  Globe, 
+  Zap, 
+  UserX, 
+  Key, 
+  Ban, 
+  Lightbulb,
+  Send,
+  Shield,
+  Network
+} from 'lucide-react';
 
 interface LandingPageProps {
   onGetStarted: () => void;
@@ -196,9 +216,13 @@ export default function LandingPage({ onGetStarted }: LandingPageProps) {
                     <div className="text-sm text-gray-600 mb-2">User A</div>
                     <div className="text-xs text-gray-500">Generates Key Pair</div>
                     <div className="bg-gray-50 p-3 rounded-lg mt-4 max-w-xs mx-auto">
-                      <div className="text-xs font-mono text-gray-700 mb-1">Private Key 🔐</div>
+                      <div className="text-xs font-mono text-gray-700 mb-1 flex items-center gap-1">
+                        <Lock className="w-3 h-3" /> Private Key
+                      </div>
                       <div className="text-xs font-mono text-gray-500 mb-2">Stored locally</div>
-                      <div className="text-xs font-mono text-gray-700">Public Key 📤</div>
+                      <div className="text-xs font-mono text-gray-700 flex items-center gap-1">
+                        <Upload className="w-3 h-3" /> Public Key
+                      </div>
                       <div className="text-xs font-mono text-gray-500">Shared</div>
                     </div>
                   </div>
@@ -217,8 +241,16 @@ export default function LandingPage({ onGetStarted }: LandingPageProps) {
                     animationStep >= 1 ? 'opacity-100 scale-100' : 'opacity-50 scale-95'
                   }`}>
                     <div className="text-sm font-semibold mb-2">Message Encryption</div>
-                    <div className="text-xs font-mono opacity-75">
-                      {animationStep >= 1 ? '🔒 Encrypted' : '📝 Plain text'}
+                    <div className="text-xs font-mono opacity-75 flex items-center justify-center gap-1">
+                      {animationStep >= 1 ? (
+                        <>
+                          <Lock className="w-3 h-3" /> Encrypted
+                        </>
+                      ) : (
+                        <>
+                          <FileText className="w-3 h-3" /> Plain text
+                        </>
+                      )}
                     </div>
                   </div>
 
@@ -242,7 +274,9 @@ export default function LandingPage({ onGetStarted }: LandingPageProps) {
                     </div>
                     <div className="text-sm text-gray-600 mb-1">Server</div>
                     <div className="text-xs text-gray-500 mb-2">Routes encrypted data</div>
-                    <div className="text-xs text-red-600">❌ Cannot read</div>
+                    <div className="text-xs text-red-600 flex items-center justify-center gap-1">
+                      <X className="w-3 h-3" /> Cannot read
+                    </div>
                   </div>
 
                   {/* Arrow Down */}
@@ -259,7 +293,9 @@ export default function LandingPage({ onGetStarted }: LandingPageProps) {
                     animationStep >= 2 ? 'opacity-100 scale-100' : 'opacity-50 scale-95'
                   }`}>
                     <div className="text-sm font-semibold mb-2">Encrypted Message</div>
-                    <div className="text-xs font-mono opacity-75">🔒 Ciphertext</div>
+                    <div className="text-xs font-mono opacity-75 flex items-center justify-center gap-1">
+                      <Lock className="w-3 h-3" /> Ciphertext
+                    </div>
                   </div>
 
                   {/* Arrow Down */}
@@ -282,8 +318,16 @@ export default function LandingPage({ onGetStarted }: LandingPageProps) {
                       animationStep >= 3 ? 'opacity-100' : 'opacity-50'
                     }`}>
                       <div className="text-xs font-mono text-gray-700 mb-1">Decrypted</div>
-                      <div className="text-xs font-mono text-gray-900">
-                        {animationStep >= 3 ? '✅ Message readable' : '🔒 Encrypted'}
+                      <div className="text-xs font-mono text-gray-900 flex items-center justify-center gap-1">
+                        {animationStep >= 3 ? (
+                          <>
+                            <CheckCircle className="w-3 h-3 text-green-600" /> Message readable
+                          </>
+                        ) : (
+                          <>
+                            <Lock className="w-3 h-3" /> Encrypted
+                          </>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -303,10 +347,14 @@ export default function LandingPage({ onGetStarted }: LandingPageProps) {
                   </div>
                   
                   <div className="bg-gray-50 p-3 lg:p-4 rounded-lg mb-4">
-                    <div className="text-xs font-mono text-gray-700 mb-2">Private Key</div>
-                    <div className="text-xs font-mono text-gray-500 break-all">🔐 Stored locally</div>
-                    <div className="text-xs font-mono text-gray-700 mt-2">Public Key</div>
-                    <div className="text-xs font-mono text-gray-500 break-all">📤 Shared</div>
+                    <div className="text-xs font-mono text-gray-700 mb-2 flex items-center gap-1">
+                      <Lock className="w-3 h-3" /> Private Key
+                    </div>
+                    <div className="text-xs font-mono text-gray-500 break-all">Stored locally</div>
+                    <div className="text-xs font-mono text-gray-700 mt-2 flex items-center gap-1">
+                      <Upload className="w-3 h-3" /> Public Key
+                    </div>
+                    <div className="text-xs font-mono text-gray-500 break-all">Shared</div>
                   </div>
                 </div>
 
@@ -325,8 +373,16 @@ export default function LandingPage({ onGetStarted }: LandingPageProps) {
                       animationStep >= 1 ? 'opacity-100 scale-100' : 'opacity-50 scale-95'
                     }`}>
                       <div className="text-xs lg:text-sm font-semibold mb-2">Message Encryption</div>
-                      <div className="text-xs font-mono opacity-75">
-                        {animationStep >= 1 ? '🔒 Encrypted' : '📝 Plain text'}
+                      <div className="text-xs font-mono opacity-75 flex items-center justify-center gap-1">
+                        {animationStep >= 1 ? (
+                          <>
+                            <Lock className="w-3 h-3" /> Encrypted
+                          </>
+                        ) : (
+                          <>
+                            <FileText className="w-3 h-3" /> Plain text
+                          </>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -344,7 +400,9 @@ export default function LandingPage({ onGetStarted }: LandingPageProps) {
                     </div>
                     <div className="text-sm text-gray-600">Server</div>
                     <div className="text-xs text-gray-500 mt-1">Routes encrypted data</div>
-                    <div className="text-xs text-red-600 mt-2">❌ Cannot read</div>
+                    <div className="text-xs text-red-600 mt-2 flex items-center justify-center gap-1">
+                      <X className="w-3 h-3" /> Cannot read
+                    </div>
                   </div>
                 </div>
 
@@ -363,7 +421,9 @@ export default function LandingPage({ onGetStarted }: LandingPageProps) {
                       animationStep >= 2 ? 'opacity-100 scale-100' : 'opacity-50 scale-95'
                     }`}>
                       <div className="text-xs lg:text-sm font-semibold mb-2">Encrypted Message</div>
-                      <div className="text-xs font-mono opacity-75">🔒 Ciphertext</div>
+                      <div className="text-xs font-mono opacity-75 flex items-center justify-center gap-1">
+                        <Lock className="w-3 h-3" /> Ciphertext
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -382,8 +442,16 @@ export default function LandingPage({ onGetStarted }: LandingPageProps) {
                     animationStep >= 3 ? 'opacity-100' : 'opacity-50'
                   }`}>
                     <div className="text-xs font-mono text-gray-700 mb-2">Decrypted</div>
-                    <div className="text-xs font-mono text-gray-900">
-                      {animationStep >= 3 ? '✅ Message readable' : '🔒 Encrypted'}
+                    <div className="text-xs font-mono text-gray-900 flex items-center justify-center gap-1">
+                      {animationStep >= 3 ? (
+                        <>
+                          <CheckCircle className="w-3 h-3 text-green-600" /> Message readable
+                        </>
+                      ) : (
+                        <>
+                          <Lock className="w-3 h-3" /> Encrypted
+                        </>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -455,8 +523,9 @@ export default function LandingPage({ onGetStarted }: LandingPageProps) {
                 See how Chat Privacy stacks up against WhatsApp and Telegram
               </p>
               <div className="bg-yellow-50 border-l-4 border-yellow-500 p-4 rounded-lg max-w-3xl mx-auto">
-                <p className="text-sm text-gray-800">
-                  <span className="font-semibold">🌟 Highlighted rows</span> show our unique innovations that WhatsApp and Telegram don't offer!
+                <p className="text-sm text-gray-800 flex items-center gap-2">
+                  <Star className="w-4 h-4 text-yellow-600 fill-yellow-600" />
+                  <span className="font-semibold">Highlighted rows</span> show our unique innovations that WhatsApp and Telegram don't offer!
                 </p>
               </div>
             </div>
@@ -474,39 +543,64 @@ export default function LandingPage({ onGetStarted }: LandingPageProps) {
                   </thead>
                   <tbody>
                     {[
-                      { feature: 'Default End-to-End Encryption', whatsapp: '✓ Yes (Signal Protocol)', telegram: '✗ Cloud chats: No\n✓ Secret chats: Yes', privacy: '✓ Yes (libsodium/NaCl)', highlight: false },
-                      { feature: 'Phone Number Required', whatsapp: '✓ Required', telegram: '✓ Usually required', privacy: '✗ Not required', highlight: true },
-                      { feature: 'Metadata Collection', whatsapp: '✓ Yes (who, when, device)', telegram: '✓ Yes', privacy: '✗ Zero metadata', highlight: true },
-                      { feature: 'Server Can Read Messages', whatsapp: '✗ No', telegram: '⚠️ Yes (cloud chats)', privacy: '✗ No', highlight: false },
-                      { feature: 'Message Routing Method', whatsapp: 'Server routes messages', telegram: 'Server routes messages', privacy: '🌟 Peer-to-Peer (WebRTC)\nNo server in message path!', highlight: true },
-                      { feature: 'Anonymous Accounts', whatsapp: '✗ No', telegram: '△ Limited', privacy: '✓ Fully anonymous', highlight: true },
-                      { feature: 'User-Controlled Keys', whatsapp: '✗ No', telegram: '✗ No', privacy: '✓ Yes (100% client-side)', highlight: true },
-                      { feature: 'Backend Technology', whatsapp: 'C++ (proprietary)', telegram: 'C++ (proprietary)', privacy: '🌟 Rust (memory-safe)\nMaximum security', highlight: true },
-                      { feature: 'Message Storage', whatsapp: 'On device', telegram: 'On Telegram cloud', privacy: 'Device only (ephemeral)', highlight: false },
-                      { feature: 'Open Source', whatsapp: '✗ Not open source', telegram: '△ Partially', privacy: '✓ Fully open source', highlight: true },
-                      { feature: 'Perfect Forward Secrecy', whatsapp: '✓ Yes (Double Ratchet)', telegram: '△ Weak/limited', privacy: '✓ Yes (if implemented)', highlight: false },
-                      { feature: 'Latency', whatsapp: '~50-100ms (via server)', telegram: '~50-100ms (via server)', privacy: '🌟 ~20-50ms (direct P2P)\nFaster connection!', highlight: true },
-                      { feature: 'Server Message Access', whatsapp: 'Server routes (encrypted)', telegram: 'Server can read (cloud)', privacy: '🌟 Server never sees messages\nTrue P2P!', highlight: true },
-                      { feature: 'Custom Features', whatsapp: '✗ No', telegram: '✗ Limited', privacy: '✓ Unlimited control', highlight: false },
-                    ].map((row, index) => (
-                      <tr
-                        key={index}
-                        className={`border-b border-gray-200 transition-colors ${
-                          row.highlight ? 'bg-yellow-50 hover:bg-yellow-100' : index % 2 === 1 ? 'bg-gray-50' : ''
-                        }`}
-                      >
-                        <td className="py-3 px-3 sm:py-4 sm:px-6 font-medium text-gray-900 text-xs sm:text-sm">{row.feature}</td>
-                        <td className="py-3 px-3 sm:py-4 sm:px-6 text-center text-gray-600 text-xs sm:text-sm whitespace-nowrap">{row.whatsapp}</td>
-                        <td className="py-3 px-3 sm:py-4 sm:px-6 text-center text-gray-600 text-xs sm:text-sm whitespace-nowrap">{row.telegram}</td>
-                        <td className={`py-3 px-3 sm:py-4 sm:px-6 text-center font-semibold text-xs sm:text-sm ${
-                          row.highlight 
-                            ? 'text-gray-900 bg-yellow-100 border-l-4 border-yellow-500' 
-                            : index % 2 === 1 ? 'bg-white text-gray-900' : 'bg-gray-50 text-gray-900'
-                        }`}>
-                          <span className="whitespace-pre-line">{row.privacy}</span>
-                        </td>
-                      </tr>
-                    ))}
+                      { feature: 'Default End-to-End Encryption', whatsapp: 'Yes (Signal Protocol)', telegram: 'Cloud chats: No\nSecret chats: Yes', privacy: 'Yes (libsodium/NaCl)', highlight: false, whatsappIcon: 'check', telegramIcon: 'none', privacyIcon: 'check' },
+                      { feature: 'Phone Number Required', whatsapp: 'Required', telegram: 'Usually required', privacy: 'Not required', highlight: true, whatsappIcon: 'check', telegramIcon: 'check', privacyIcon: 'x' },
+                      { feature: 'Metadata Collection', whatsapp: 'Yes (who, when, device)', telegram: 'Yes', privacy: 'Zero metadata', highlight: true, whatsappIcon: 'check', telegramIcon: 'check', privacyIcon: 'x' },
+                      { feature: 'Server Can Read Messages', whatsapp: 'No', telegram: 'Yes (cloud chats)', privacy: 'No', highlight: false, whatsappIcon: 'x', telegramIcon: 'warning', privacyIcon: 'x' },
+                      { feature: 'Message Routing Method', whatsapp: 'Server routes messages', telegram: 'Server routes messages', privacy: 'Peer-to-Peer (WebRTC)\nNo server in message path!', highlight: true, whatsappIcon: 'none', telegramIcon: 'none', privacyIcon: 'star' },
+                      { feature: 'Anonymous Accounts', whatsapp: 'No', telegram: 'Limited', privacy: 'Fully anonymous', highlight: true, whatsappIcon: 'x', telegramIcon: 'limited', privacyIcon: 'check' },
+                      { feature: 'User-Controlled Keys', whatsapp: 'No', telegram: 'No', privacy: 'Yes (100% client-side)', highlight: true, whatsappIcon: 'x', telegramIcon: 'x', privacyIcon: 'check' },
+                      { feature: 'Backend Technology', whatsapp: 'C++ (proprietary)', telegram: 'C++ (proprietary)', privacy: 'Rust (memory-safe)\nMaximum security', highlight: true, whatsappIcon: 'none', telegramIcon: 'none', privacyIcon: 'star' },
+                      { feature: 'Message Storage', whatsapp: 'On device', telegram: 'On Telegram cloud', privacy: 'Device only (ephemeral)', highlight: false, whatsappIcon: 'none', telegramIcon: 'none', privacyIcon: 'none' },
+                      { feature: 'Open Source', whatsapp: 'Not open source', telegram: 'Partially', privacy: 'Fully open source', highlight: true, whatsappIcon: 'x', telegramIcon: 'limited', privacyIcon: 'check' },
+                      { feature: 'Perfect Forward Secrecy', whatsapp: 'Yes (Double Ratchet)', telegram: 'Weak/limited', privacy: 'Yes (if implemented)', highlight: false, whatsappIcon: 'check', telegramIcon: 'limited', privacyIcon: 'check' },
+                      { feature: 'Latency', whatsapp: '~50-100ms (via server)', telegram: '~50-100ms (via server)', privacy: '~20-50ms (direct P2P)\nFaster connection!', highlight: true, whatsappIcon: 'none', telegramIcon: 'none', privacyIcon: 'star' },
+                      { feature: 'Server Message Access', whatsapp: 'Server routes (encrypted)', telegram: 'Server can read (cloud)', privacy: 'Server never sees messages\nTrue P2P!', highlight: true, whatsappIcon: 'none', telegramIcon: 'none', privacyIcon: 'star' },
+                      { feature: 'Custom Features', whatsapp: 'No', telegram: 'Limited', privacy: 'Unlimited control', highlight: false, whatsappIcon: 'x', telegramIcon: 'limited', privacyIcon: 'check' },
+                    ].map((row: any, index) => {
+                      const renderIcon = (iconType: string) => {
+                        switch(iconType) {
+                          case 'check': return <Check className="w-4 h-4 inline text-green-600" />;
+                          case 'x': return <X className="w-4 h-4 inline text-red-600" />;
+                          case 'warning': return <AlertTriangle className="w-4 h-4 inline text-yellow-600" />;
+                          case 'limited': return <AlertTriangle className="w-4 h-4 inline text-orange-600" />;
+                          case 'star': return <Star className="w-4 h-4 inline text-yellow-600 fill-yellow-600" />;
+                          case 'mixed': return null; // Mixed state - no icon
+                          case 'none': return null; // No icon needed
+                          default: return null;
+                        }
+                      };
+                      
+                      return (
+                        <tr
+                          key={index}
+                          className={`border-b border-gray-200 transition-colors ${
+                            row.highlight ? 'bg-yellow-50 hover:bg-yellow-100' : index % 2 === 1 ? 'bg-gray-50' : ''
+                          }`}
+                        >
+                          <td className="py-3 px-3 sm:py-4 sm:px-6 font-medium text-gray-900 text-xs sm:text-sm">{row.feature}</td>
+                          <td className="py-3 px-3 sm:py-4 sm:px-6 text-center text-gray-600 text-xs sm:text-sm whitespace-nowrap">
+                            <span className="flex items-center justify-center gap-1">
+                              {row.whatsappIcon && renderIcon(row.whatsappIcon)} {row.whatsapp}
+                            </span>
+                          </td>
+                          <td className="py-3 px-3 sm:py-4 sm:px-6 text-center text-gray-600 text-xs sm:text-sm whitespace-nowrap">
+                            <span className="flex items-center justify-center gap-1">
+                              {row.telegramIcon && renderIcon(row.telegramIcon)} {row.telegram}
+                            </span>
+                          </td>
+                          <td className={`py-3 px-3 sm:py-4 sm:px-6 text-center font-semibold text-xs sm:text-sm ${
+                            row.highlight 
+                              ? 'text-gray-900 bg-yellow-100 border-l-4 border-yellow-500' 
+                              : index % 2 === 1 ? 'bg-white text-gray-900' : 'bg-gray-50 text-gray-900'
+                          }`}>
+                            <span className="whitespace-pre-line flex items-center justify-center gap-1">
+                              {row.privacyIcon && renderIcon(row.privacyIcon)} {row.privacy}
+                            </span>
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
@@ -514,10 +608,14 @@ export default function LandingPage({ onGetStarted }: LandingPageProps) {
 
             {/* Innovation Highlights */}
             <div className="mt-8 sm:mt-12 max-w-6xl mx-auto">
-              <h4 className="text-xl sm:text-2xl font-bold text-gray-900 mb-6 text-center">🚀 Our Unique Innovations</h4>
+              <h4 className="text-xl sm:text-2xl font-bold text-gray-900 mb-6 text-center flex items-center justify-center gap-2">
+                <Rocket className="w-6 h-6 text-gray-900" /> Our Unique Innovations
+              </h4>
               <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 mb-8">
                 <div className="bg-gradient-to-br from-gray-900 to-gray-800 text-white p-4 sm:p-6 rounded-lg shadow-lg">
-                  <div className="text-3xl mb-3">🌐</div>
+                  <div className="mb-3">
+                    <Network className="w-8 h-8 text-white" />
+                  </div>
                   <h5 className="text-base sm:text-lg font-semibold mb-2">Peer-to-Peer (WebRTC)</h5>
                   <p className="text-xs sm:text-sm text-gray-300">
                     Messages go <strong>directly between browsers</strong>. Server only helps establish connection - never sees your messages. This is revolutionary!
@@ -525,7 +623,9 @@ export default function LandingPage({ onGetStarted }: LandingPageProps) {
                 </div>
 
                 <div className="bg-gradient-to-br from-gray-900 to-gray-800 text-white p-4 sm:p-6 rounded-lg shadow-lg">
-                  <div className="text-3xl mb-3">⚡</div>
+                  <div className="mb-3">
+                    <Shield className="w-8 h-8 text-white" />
+                  </div>
                   <h5 className="text-base sm:text-lg font-semibold mb-2">Rust Backend</h5>
                   <p className="text-xs sm:text-sm text-gray-300">
                     Built with <strong>Rust</strong> - the most secure programming language. Memory-safe, zero vulnerabilities. Better than C++ used by WhatsApp/Telegram.
@@ -533,7 +633,9 @@ export default function LandingPage({ onGetStarted }: LandingPageProps) {
                 </div>
 
                 <div className="bg-gradient-to-br from-gray-900 to-gray-800 text-white p-4 sm:p-6 rounded-lg shadow-lg">
-                  <div className="text-3xl mb-3">👻</div>
+                  <div className="mb-3">
+                    <UserX className="w-8 h-8 text-white" />
+                  </div>
                   <h5 className="text-base sm:text-lg font-semibold mb-2">True Anonymity</h5>
                   <p className="text-xs sm:text-sm text-gray-300">
                     <strong>No phone number, no email</strong>. Just a username. Complete anonymity that WhatsApp and Telegram can't provide.
@@ -541,7 +643,9 @@ export default function LandingPage({ onGetStarted }: LandingPageProps) {
                 </div>
 
                 <div className="bg-gradient-to-br from-gray-900 to-gray-800 text-white p-4 sm:p-6 rounded-lg shadow-lg">
-                  <div className="text-3xl mb-3">🔑</div>
+                  <div className="mb-3">
+                    <Key className="w-8 h-8 text-white" />
+                  </div>
                   <h5 className="text-base sm:text-lg font-semibold mb-2">You Control Keys</h5>
                   <p className="text-xs sm:text-sm text-gray-300">
                     Encryption keys generated and stored <strong>100% on your device</strong>. You own your keys - not the company. True user sovereignty.
@@ -549,7 +653,9 @@ export default function LandingPage({ onGetStarted }: LandingPageProps) {
                 </div>
 
                 <div className="bg-gradient-to-br from-gray-900 to-gray-800 text-white p-4 sm:p-6 rounded-lg shadow-lg">
-                  <div className="text-3xl mb-3">🚫</div>
+                  <div className="mb-3">
+                    <Ban className="w-8 h-8 text-white" />
+                  </div>
                   <h5 className="text-base sm:text-lg font-semibold mb-2">Zero Metadata</h5>
                   <p className="text-xs sm:text-sm text-gray-300">
                     We don't collect <strong>who you talk to, when, or how often</strong>. WhatsApp and Telegram track everything. We track nothing.
@@ -557,7 +663,9 @@ export default function LandingPage({ onGetStarted }: LandingPageProps) {
                 </div>
 
                 <div className="bg-gradient-to-br from-gray-900 to-gray-800 text-white p-4 sm:p-6 rounded-lg shadow-lg">
-                  <div className="text-3xl mb-3">⚡</div>
+                  <div className="mb-3">
+                    <Zap className="w-8 h-8 text-white" />
+                  </div>
                   <h5 className="text-base sm:text-lg font-semibold mb-2">Faster Messages</h5>
                   <p className="text-xs sm:text-sm text-gray-300">
                     <strong>Direct P2P connection</strong> means lower latency (~20-50ms vs ~50-100ms). Messages arrive faster because there's no server hop!
@@ -566,26 +674,28 @@ export default function LandingPage({ onGetStarted }: LandingPageProps) {
               </div>
 
               <div className="bg-blue-50 border-l-4 border-blue-500 p-4 sm:p-6 rounded-lg">
-                <h5 className="text-base sm:text-lg font-semibold text-gray-900 mb-3">💡 What Makes Us Different?</h5>
+                <h5 className="text-base sm:text-lg font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                  <Lightbulb className="w-5 h-5 text-blue-600" /> What Makes Us Different?
+                </h5>
                 <ul className="space-y-2 text-xs sm:text-sm text-gray-700">
                   <li className="flex items-start">
-                    <span className="text-blue-500 mr-2 font-bold">✓</span>
+                    <CheckCircle className="w-4 h-4 text-blue-500 mr-2 mt-0.5 flex-shrink-0" />
                     <span><strong>WebRTC P2P:</strong> Only we use true peer-to-peer messaging. WhatsApp and Telegram route through their servers.</span>
                   </li>
                   <li className="flex items-start">
-                    <span className="text-blue-500 mr-2 font-bold">✓</span>
+                    <CheckCircle className="w-4 h-4 text-blue-500 mr-2 mt-0.5 flex-shrink-0" />
                     <span><strong>Rust Security:</strong> Only we use Rust backend. WhatsApp and Telegram use C++ (more vulnerable).</span>
                   </li>
                   <li className="flex items-start">
-                    <span className="text-blue-500 mr-2 font-bold">✓</span>
+                    <CheckCircle className="w-4 h-4 text-blue-500 mr-2 mt-0.5 flex-shrink-0" />
                     <span><strong>No Phone Number:</strong> Only we allow true anonymous accounts. WhatsApp requires phone, Telegram usually does too.</span>
                   </li>
                   <li className="flex items-start">
-                    <span className="text-blue-500 mr-2 font-bold">✓</span>
+                    <CheckCircle className="w-4 h-4 text-blue-500 mr-2 mt-0.5 flex-shrink-0" />
                     <span><strong>Zero Metadata:</strong> Only we collect zero metadata. Others track who you talk to and when.</span>
                   </li>
                   <li className="flex items-start">
-                    <span className="text-blue-500 mr-2 font-bold">✓</span>
+                    <CheckCircle className="w-4 h-4 text-blue-500 mr-2 mt-0.5 flex-shrink-0" />
                     <span><strong>User-Controlled Keys:</strong> Only we let you fully control your encryption keys. Others control them for you.</span>
                   </li>
                 </ul>
