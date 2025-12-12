@@ -206,4 +206,112 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 
 ---
 
+## 📚 Documentation
+
+- **[Architecture Guide](./backend/ARCHITECTURE.md)** - Complete system architecture
+- **[Encryption Flow](./ENCRYPTION_FLOW.md)** - Detailed encryption documentation
+- **[Backend README](./backend/README.md)** - Rust backend documentation
+
+---
+
+## 🏗️ Architecture Overview
+
+```
+Frontend (Next.js)          Backend (Rust)              Frontend (Next.js)
+──────────────────          ──────────────              ──────────────────
+User A Browser              Axum Server                 User B Browser
+├── Key Generation          ├── WebSocket Server        ├── Message Decryption
+├── Message Encryption     ├── Connection Manager       ├── Message Display
+├── WebSocket Client        ├── Message Router          └── WebSocket Client
+└── Local Storage          └── Ephemeral Storage
+    (Private Keys)             (Public Keys Only)
+```
+
+**Key Points:**
+- All encryption happens **client-side**
+- Server **cannot decrypt** messages
+- Private keys **never leave** browser
+- Public keys stored **ephemerally** (in memory)
+
+---
+
+## 🚀 Deployment
+
+### Frontend (Vercel)
+
+The frontend can be deployed to Vercel:
+
+1. **Push your code to GitHub**
+   ```bash
+   git add .
+   git commit -m "Ready for deployment"
+   git push origin main
+   ```
+
+2. **Connect to Vercel**
+   - Go to [vercel.com](https://vercel.com)
+   - Import your GitHub repository
+   - Add environment variables:
+     - `NEXT_PUBLIC_API_URL` - Your Rust backend URL (e.g., `https://your-backend.railway.app`)
+     - `NEXT_PUBLIC_WS_URL` - Your WebSocket URL (e.g., `wss://your-backend.railway.app/api/ws`)
+   - Deploy!
+
+3. **Environment Variables in Vercel**
+   - Go to Project Settings → Environment Variables
+   - Add:
+     ```
+     NEXT_PUBLIC_API_URL=https://your-backend.railway.app
+     NEXT_PUBLIC_WS_URL=wss://your-backend.railway.app/api/ws
+     ```
+
+### Backend (Rust - Separate Deployment Required)
+
+**⚠️ Important:** Vercel doesn't support long-running WebSocket servers. You must deploy the Rust backend separately.
+
+**Recommended hosting options:**
+
+1. **Railway** (Recommended)
+   - Push backend code to GitHub
+   - Connect Railway to your repo
+   - Set build command: `cargo build --release`
+   - Set start command: `./target/release/chat-privacy-backend`
+   - Railway automatically provides HTTPS and WebSocket support
+
+2. **Fly.io**
+   - Install Fly CLI: `curl -L https://fly.io/install.sh | sh`
+   - Run: `fly launch` in the `backend` directory
+   - Follow prompts to deploy
+
+3. **Render**
+   - Create a new Web Service
+   - Connect your GitHub repo
+   - Set build command: `cd backend && cargo build --release`
+   - Set start command: `cd backend && ./target/release/chat-privacy-backend`
+
+4. **VPS (DigitalOcean, AWS, etc.)**
+   - SSH into your server
+   - Install Rust: `curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh`
+   - Clone repo and build: `cd backend && cargo build --release`
+   - Run: `./target/release/chat-privacy-backend`
+
+### Environment Variables
+
+Create a `.env.local` file (or set in your hosting platform):
+
+```env
+# Backend API URL (for HTTP requests)
+NEXT_PUBLIC_API_URL=https://your-backend.railway.app
+
+# WebSocket URL (for real-time chat)
+# Use wss:// (secure) for production, ws:// for local development
+NEXT_PUBLIC_WS_URL=wss://your-backend.railway.app/api/ws
+```
+
+**Note:** 
+- Use `ws://` for local development
+- Use `wss://` (secure WebSocket) for production
+- Make sure your backend supports HTTPS/WSS
+
+---
+
 **Built with ❤️ for privacy-conscious users**

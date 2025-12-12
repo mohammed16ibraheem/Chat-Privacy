@@ -1,0 +1,44 @@
+[package]
+name = "chat-privacy-backend"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+# Web framework
+axum = { version = "0.7", features = ["ws", "macros"] }
+tokio = { version = "1.35", features = ["full"] }
+tower = "0.4"
+tower-http = { version = "0.5", features = ["cors"] }
+
+# WebSocket
+tokio-tungstenite = "0.21"
+futures-util = "0.3"
+
+# Serialization
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+
+# Encryption (libsodium bindings)
+sodiumoxide = "0.2"
+
+# Async runtime
+async-trait = "0.1"
+
+# Logging (minimal, zero metadata)
+tracing = "0.1"
+tracing-subscriber = "0.3"
+
+# Error handling
+anyhow = "1.0"
+thiserror = "1.0"
+
+# Time utilities
+chrono = "0.4"
+
+# UUID generation
+uuid = { version = "1.6", features = ["v4"] }
+
+[dev-dependencies]
+# Testing
+tokio-test = "0.4"
+
